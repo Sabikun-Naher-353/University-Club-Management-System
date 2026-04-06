@@ -8,7 +8,7 @@ const fmt  = d => d ? new Date(d).toLocaleDateString("en-GB", { day:"2-digit", m
 
 export default function Dashboard() {
   const navigate    = useNavigate();
-  const { isDark }  = useTheme();
+  const { isDark }  = useTheme(); 
 
   const [user,    setUser]    = useState(null);
   const [section, setSection] = useState("explore");
