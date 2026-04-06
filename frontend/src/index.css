@@ -1,0 +1,80 @@
+/* ─────────────────────────────────────────────
+   UniClub — Global Theme Variables
+   Applied to <body> via ThemeContext.js
+───────────────────────────────────────────── */
+
+/* ── DARK THEME ── */
+body.theme-dark {
+  --bg:           #0e1825;
+  --surface:      #162030;
+  --surface2:     #1d2c3f;
+  --surface3:     #243448;
+  --border:       rgba(196, 178, 140, 0.12);
+  --border-hover: rgba(196, 178, 140, 0.35);
+  --text:         #dde4ee;
+  --text-soft:    #8fa0b5;
+  --text-muted:   #5e738a;
+  --accent:       #c4b28c;
+  --accent-deep:  #a8956e;
+  --accent-text:  #c4b28c;
+  --accent-btn-text: #0e1825;
+  --nav-bg:       rgba(14, 24, 37, 0.95);
+  --shadow:       0 4px 24px rgba(0, 0, 0, 0.35);
+  --red:          #e07070;
+  --red-bg:       rgba(224, 112, 112, 0.1);
+  --red-border:   rgba(224, 112, 112, 0.3);
+  --yellow:       #f0c060;
+  --green:        #7ec49c;
+}
+
+/* ── LIGHT THEME ── */
+body.theme-light {
+  --bg:           #f4f1eb;
+  --surface:      #ffffff;
+  --surface2:     #f9f7f3;
+  --surface3:     #ede9e0;
+  --border:       rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.2);
+  --text:         #1a2332;
+  --text-soft:    #4a5568;
+  --text-muted:   #8a9ab0;
+  --accent:       #2d7a5f;
+  --accent-deep:  #1f5c47;
+  --accent-text:  #2d7a5f;
+  --accent-btn-text: #ffffff;
+  --nav-bg:       rgba(255, 255, 255, 0.95);
+  --shadow:       0 4px 24px rgba(0, 0, 0, 0.08);
+  --red:          #c0392b;
+  --red-bg:       rgba(192, 57, 43, 0.08);
+  --red-border:   rgba(192, 57, 43, 0.25);
+  --yellow:       #d4a012;
+  --green:        #2d7a5f;
+}
+
+/* ── GLOBAL RESETS ── */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* Smooth transition when theme switches */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+
+/* Override transition for things that should NOT animate (transforms, opacity) */
+button, a, input, [class*="anim-"] {
+  transition-property: background-color, border-color, color, opacity, transform;
+}
