@@ -107,7 +107,7 @@ export default function Users() {
   useEffect(() => {
     if (storedUser.role === "super_admin") {
       if (varsityFilter !== "all") {
-        fetch(`http://localhost:5000/api/auth/clubs?universityId=${varsityFilter}`)
+        fetch(`http://localhost:5000/api/admin/clubs?universityId=${varsityFilter}`)
           .then(r => r.json())
           .then(d => setClubs(Array.isArray(d) ? d : []))
           .catch(() => {});
@@ -118,7 +118,7 @@ export default function Users() {
           .catch(() => {});
       }
     } else if (uid) {
-      fetch(`http://localhost:5000/api/auth/clubs?universityId=${uid}`)
+      fetch(`http://localhost:5000/api/admin/clubs?universityId=${uid}`)
         .then(r => r.json())
         .then(d => setClubs(Array.isArray(d) ? d : []))
         .catch(() => {});
