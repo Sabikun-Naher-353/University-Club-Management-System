@@ -102,7 +102,7 @@ export default function Register() {
   useEffect(() => { setTimeout(() => setVisible(true), 60); }, []);
 
   useEffect(() => {
-    fetch(`${API}/auth/universities`)
+    fetch(`${API}/admin/universities`)
       .then(r => r.json())
       .then(d => setUniversities(d.map(u => ({ id: u.id, name: u.name }))))
       .catch(() => {});
@@ -117,7 +117,7 @@ export default function Register() {
     if (!isValidEmail(email)) return;
     setCheckingEmail(true);
     try {
-      const r = await fetch(`${API}/auth/check-email`, {
+      const r = await fetch(`${API}/admin/check-email`, {
         method:"POST", headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ email }),
       });
@@ -131,7 +131,7 @@ export default function Register() {
     if (username.length < 3) return;
     setCheckingUsername(true);
     try {
-      const r = await fetch(`${API}/auth/check-username`, {
+      const r = await fetch(`${API}/admin/check-username`, {
         method:"POST", headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ username }),
       });
@@ -182,7 +182,7 @@ export default function Register() {
       if (role === "varsity") Object.assign(payload, { varsityName: form.varsityName, country: form.country });
       if (role === "club")    Object.assign(payload, { name: form.name, universityId: form.universityId, clubName: form.clubName, maxSeats: form.maxSeats });
 
-      const res  = await fetch(`${API}/auth/register`, {
+      const res  = await fetch(`${API}/admin/register`, {
         method:"POST", headers:{ "Content-Type":"application/json" },
         body: JSON.stringify(payload),
       });
