@@ -1,4 +1,4 @@
-// controllers/authController.js
+// controllers/authController.js - COMPLETE FILE
 const db     = require("../models/db");
 const jwt    = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
@@ -88,11 +88,12 @@ exports.checkUsername = (req, res) => {
     res.json({ exists: result.length > 0 });
   });
 };
+
 exports.register = async (req, res) => {
   const {
     role, email, password, name, username,
     birthday, country, universityId,
-    clubs, varsityName, clubName,
+    clubs, varsityName, clubName, maxSeats,
   } = req.body;
 
   if (!role || !email || !password)
@@ -158,6 +159,12 @@ exports.register = async (req, res) => {
     } else if (role === "club") {
       if (!clubName || !clubName.trim())
         return res.status(400).json({ message: "Club name is required" });
+      
+      // Validate max_seats
+      const seats = parseInt(maxSeats, 10);
+      if (isNaN(seats) || seats <= 0)
+        return res.status(400).json({ message: "Maximum seats must be a positive number" });
+
       const sql = `INSERT INTO users (name, email, password, role, status, university_id)
                    VALUES (?, ?, ?, 'club_rep', 'pending', ?)`;
       db.query(
@@ -167,8 +174,8 @@ exports.register = async (req, res) => {
           if (err) return res.status(500).json({ message: "Server error" });
           const userId = result.insertId;
           db.query(
-            `INSERT INTO clubs (name, university_id, status, requested_by_user_id) VALUES (?, ?, 'pending', ?)`,
-            [clubName.trim(), universityId || null, userId],
+            `INSERT INTO clubs (name, max_seats, university_id, status, requested_by_user_id) VALUES (?, ?, ?, 'pending', ?)`,
+            [clubName.trim(), seats, universityId || null, userId],
             (clubErr) => { if (clubErr) console.error("Failed to insert pending club:", clubErr.message); }
           );
           res.status(201).json({ message: "pending", info: "Your club registration request has been submitted." });
