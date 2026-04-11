@@ -35,7 +35,7 @@ export default function Login() {
     if (Object.keys(e).length > 0) { setErrors(e); return; }
     setSubmitting(true);
     try {
-      const res = await fetch(`${API}/auth/login`, {
+      const res = await fetch(`${API}/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: form.identifier, password: form.password }),
