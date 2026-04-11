@@ -33,7 +33,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!uid) return;
-    fetch("http://localhost:5000/api/auth/universities")
+    fetch("http://localhost:5000/api/admin/universities")
       .then(r => r.json())
       .then(list => { const found = list.find(u => u.id === uid); if (found) setUniName(found.name); })
       .catch(() => {});
