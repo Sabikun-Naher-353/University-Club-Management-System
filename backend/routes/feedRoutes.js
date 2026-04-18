@@ -45,4 +45,7 @@ router.get("/notices",             ctrl.getNotices);
 
 router.put("/profile/password",    ctrl.updatePassword);
 
+router.put('/:id',      ctrl.editPost);    
+router.get('/search',   ctrl.searchPosts); 
+
 module.exports = router;
