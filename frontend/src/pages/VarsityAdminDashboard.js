@@ -101,7 +101,7 @@ export default function VarsityAdminDashboard() {
     if (uid && section === "inactive-students") loadInactiveStudents();
   }, [inactiveDays, uid, section, loadInactiveStudents]);
 
-  // ── CLUB ACTIONS ─────────────────────────────────────────────────────────────
+  // CLUB ACTIONS
 
   const approveClub = async (id) => {
     const r = await fetch(`${API}/approve-club/${id}`, { method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ university_id: uid }) });
@@ -138,7 +138,7 @@ export default function VarsityAdminDashboard() {
     else       showToast(d.message || "Error", "error");
   }});
 
-  // ── STUDENT ACTIONS ───────────────────────────────────────────────────────────
+  // STUDENT ACTIONS
 
   const removeStudent = (id, name) => setConfirm({ message:`Are you sure you want to remove student "${name}" from your university?`, onConfirm: async () => {
     const r = await fetch(`${API}/remove-student/${id}`, { method:"DELETE", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ university_id: uid }) });
@@ -187,7 +187,7 @@ export default function VarsityAdminDashboard() {
     }
   });
 
-  // ── UNIVERSITY SETTINGS ───────────────────────────────────────────────────────
+  // UNIVERSITY SETTINGS
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
@@ -666,7 +666,7 @@ export default function VarsityAdminDashboard() {
   );
 }
 
-// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
+// SUB-COMPONENTS
 
 function SectionHeader({ title, italic, subtitle, noMargin }) {
   return (
@@ -750,7 +750,7 @@ function DangerBtn({ label, onClick }) {
   );
 }
 
-// ─── STYLES ───────────────────────────────────────────────────────────────────
+// STYLES
 
 const dashStyles = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
