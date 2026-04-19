@@ -4,7 +4,6 @@ import ThemeToggle from "../components/ThemeToggle";
 
 const API = "http://localhost:5000/api";
 
-//Sub-components 
 const Badge = ({ count }) =>
   count > 0 ? (
     <span style={{
@@ -86,6 +85,14 @@ export default function SuperAdminDashboard() {
     } catch {}
   }, []);
 
+  const toArray = (d, ...keys) => {
+    if (Array.isArray(d)) return d;
+    for (const k of keys) {
+      if (d && Array.isArray(d[k])) return d[k];
+    }
+    return [];
+  };
+
   const fetchSection = useCallback(async (sec) => {
     setLoading(true);
     try {
@@ -93,9 +100,9 @@ export default function SuperAdminDashboard() {
       if (map[sec]) {
         const r = await fetch(`${API}/admin/${map[sec]}`);
         const d = await r.json();
-        if (sec === "varsity") setVarsities(d);
-        if (sec === "club")    setClubs(d);
-        if (sec === "members") setMembers(d);
+        if (sec === "varsity") setVarsities(toArray(d, "universities", "varsities", "data"));
+        if (sec === "club")    setClubs(toArray(d, "clubs", "data"));
+        if (sec === "members") setMembers(toArray(d, "members", "users", "data"));
       }
     } catch {}
     setLoading(false);
@@ -592,7 +599,6 @@ const pageStyles = `
     background-size: 200px 200px;
   }
 
-  /*SHELL*/
   .shell {
     display: flex;
     height: 100vh;
@@ -603,7 +609,6 @@ const pageStyles = `
   }
   .shell.in { opacity: 1; }
 
-  /*SIDEBAR*/
   .sidebar {
     width:248px; flex-shrink:0;
     background: var(--sidebar-bg);
@@ -624,7 +629,6 @@ const pageStyles = `
     box-shadow:0 4px 12px rgba(61,191,160,0.30);
   }
 
-  /*SIDEBAR NAV*/
   .sidebar-nav-btn {
     width:100%; padding:11px 20px;
     background:transparent; border:none; border-left:2.5px solid transparent;
@@ -644,7 +648,6 @@ const pageStyles = `
     border-radius:20px; font-size:.66rem; font-weight:700; padding:2px 8px;
   }
 
-  /*SIDEBAR FOOTER*/
   .sidebar-footer { padding:16px 20px; border-top:1px solid var(--border); }
   .sidebar-quick-btn {
     width:100%; padding:9px 12px;
@@ -663,14 +666,12 @@ const pageStyles = `
   }
   .sidebar-logout-btn:hover { background:rgba(244,132,95,0.18); }
 
-  /*MAIN AREA*/
   .main-area {
     flex:1; display:flex; flex-direction:column;
     background: var(--main-bg);
     overflow:hidden;
   }
 
-  /*TOPBAR*/
   .topbar {
     height:60px; flex-shrink:0;
     background:var(--topbar-bg); backdrop-filter:blur(20px);
@@ -679,10 +680,8 @@ const pageStyles = `
     padding:0 36px; animation:fadeIn .4s ease both;
   }
 
-  /*CONTENT*/
   .content { flex:1; overflow-y:auto; padding:40px 40px 60px; }
 
-  /*PAGE HEADER*/
   .page-header { margin-bottom:32px; }
   .section-eyebrow {
     font-size:.7rem; font-weight:600; color:var(--mint);
@@ -695,7 +694,6 @@ const pageStyles = `
   }
   .section-desc { font-size:.88rem; color:var(--text-muted); }
 
-  /*STAT GRID*/
   .stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:32px; }
   .stat-card {
     background:var(--card-bg); border:1.5px solid var(--border);
@@ -708,8 +706,6 @@ const pageStyles = `
     border-color:var(--border-h); background:var(--card-hover);
     transform:translateY(-3px); box-shadow:var(--shadow-lg);
   }
-
-  /*TABLE CARD*/
   .t-card {
     background:var(--card-bg); border:1.5px solid var(--border);
     border-radius:18px; overflow:hidden; margin-bottom:20px;
@@ -726,7 +722,6 @@ const pageStyles = `
   }
   .t-card-sub { font-size:.76rem; color:var(--text-muted); margin-top:3px; }
 
-  /*TABLE*/
   .tbl { width:100%; border-collapse:collapse; }
   .tbl th {
     font-size:.68rem; font-weight:700; color:var(--text-muted);
@@ -743,7 +738,6 @@ const pageStyles = `
   .tbl tr:hover td { background:var(--tbl-hover); color:var(--text); }
   .tbl td strong { color:var(--text); font-weight:600; }
 
-  /*ACTION BUTTONS*/
   .btn-approve {
     padding:6px 14px; background:rgba(61,191,160,0.12); color:#3DBFA0;
     border:1.5px solid rgba(61,191,160,0.3); border-radius:8px;
@@ -766,7 +760,6 @@ const pageStyles = `
   }
   .btn-delete:hover { background:rgba(244,132,95,0.20); }
 
-  /*TOAST*/
   .toast {
     position:fixed; bottom:28px; right:28px; z-index:500;
     padding:13px 22px; border-radius:12px; font-size:.85rem; font-weight:500;
@@ -776,7 +769,6 @@ const pageStyles = `
   .toast-success { background:rgba(61,191,160,0.12); border:1.5px solid rgba(61,191,160,0.35); color:#3DBFA0; }
   .toast-error   { background:rgba(244,132,95,0.12);  border:1.5px solid rgba(244,132,95,0.35);  color:#F4845F; }
 
-  /*OVERLAY*/
   .overlay {
     position:fixed; inset:0; z-index:300;
     background:rgba(8,14,24,0.75); backdrop-filter:blur(8px);
@@ -784,7 +776,6 @@ const pageStyles = `
     animation:fadeIn .2s ease both;
   }
 
-  /*CONFIRM MODAL*/
   .confirm-modal {
     background:var(--card-bg); border:1.5px solid var(--border);
     border-radius:20px; padding:36px; max-width:400px; width:100%;
