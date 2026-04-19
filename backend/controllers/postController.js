@@ -87,6 +87,7 @@ exports.deletePost = (req, res) => {
     });
   });
 };
+
 exports.reactToPost = (req, res) => {
   const { postId } = req.params;
   const { type = 'like' } = req.body;
@@ -100,20 +101,17 @@ exports.reactToPost = (req, res) => {
 
       if (rows.length) {
         if (rows[0].reaction === type) {
-          // Toggle off
           db.query('DELETE FROM post_reactions WHERE id = ?', [rows[0].id], (e) => {
             if (e) return res.status(500).json({ error: 'DB error' });
             res.json({ message: 'Reaction removed', reaction: null });
           });
         } else {
-          
           db.query('UPDATE post_reactions SET reaction = ? WHERE id = ?', [type, rows[0].id], (e) => {
             if (e) return res.status(500).json({ error: 'DB error' });
             res.json({ message: 'Reaction updated', reaction: type });
           });
         }
       } else {
-        // New reaction
         db.query(
           'INSERT INTO post_reactions (post_id, user_id, reaction) VALUES (?, ?, ?)',
           [postId, userId, type],
@@ -126,8 +124,8 @@ exports.reactToPost = (req, res) => {
     }
   );
 };
+
 exports.getReactions = (req, res) => {
-  // Counts per reaction 
   db.query(
     'SELECT reaction, COUNT(*) AS count FROM post_reactions WHERE post_id = ? GROUP BY reaction',
     [req.params.postId],
@@ -187,6 +185,7 @@ exports.getComments = (req, res) => {
     }
   );
 };
+
 exports.deleteComment = (req, res) => {
   const { commentId } = req.params;
   const { id: userId, role } = req.user;
@@ -216,4 +215,91 @@ exports.sharePost = (req, res) => {
       res.json({ message: 'Post shared successfully' });
     }
   );
+};
+
+exports.reportPost = (req, res) => {
+  const { postId }  = req.params;
+  const { reason }  = req.body;
+  const reportedBy  = req.user.id;
+
+  if (!reason?.trim()) {
+    return res.status(400).json({ error: 'A reason is required to report a post' });
+  }
+
+  db.query('SELECT user_id FROM posts WHERE id = ?', [postId], (err, rows) => {
+    if (err)          return res.status(500).json({ error: 'DB error', details: err.message });
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+
+    const postAuthorId = rows[0].user_id;
+
+    if (String(postAuthorId) === String(reportedBy)) {
+      return res.status(400).json({ error: 'You cannot report your own post' });
+    }
+
+    db.query(
+      'SELECT id FROM violations WHERE user_id = ? AND reported_by = ? AND reason LIKE ?',
+      [postAuthorId, reportedBy, `[post:${postId}]%`],
+      (err2, existing) => {
+        if (err2) return res.status(500).json({ error: 'DB error', details: err2.message });
+        if (existing.length) {
+          return res.status(409).json({ error: 'You have already reported this post' });
+        }
+
+        const taggedReason = `[post:${postId}] ${reason.trim()}`;
+
+        db.query(
+          'INSERT INTO violations (user_id, reason, reported_by) VALUES (?, ?, ?)',
+          [postAuthorId, taggedReason, reportedBy],
+          (err3) => {
+            if (err3) return res.status(500).json({ error: 'DB error', details: err3.message });
+            res.status(201).json({ message: 'Post reported successfully' });
+          }
+        );
+      }
+    );
+  });
+};
+
+exports.getPostReports = (req, res) => {
+  const { postId }        = req.params;
+  const { id: userId, role } = req.user;
+
+  db.query('SELECT user_id FROM posts WHERE id = ?', [postId], (err, rows) => {
+    if (err)          return res.status(500).json({ error: 'DB error', details: err.message });
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+
+    const postAuthorId = rows[0].user_id;
+    const canView =
+      String(postAuthorId) === String(userId) ||
+      ['super_admin', 'varsity_admin'].includes(role);
+
+    if (!canView) {
+      return res.status(403).json({ error: 'Not authorised to view reports for this post' });
+    }
+
+    db.query(
+      `SELECT
+         v.id,
+         v.reason,
+         v.action_taken,
+         v.reported_at,
+         u.id     AS reporter_id,
+         u.name   AS reporter_name,
+         u.avatar AS reporter_avatar
+       FROM violations v
+       JOIN users u ON u.id = v.reported_by
+       WHERE v.user_id = ? AND v.reason LIKE ?
+       ORDER BY v.reported_at DESC`,
+      [postAuthorId, `[post:${postId}]%`],
+      (err2, reports) => {
+        if (err2) return res.status(500).json({ error: 'DB error', details: err2.message });
+        const cleaned = reports.map(r => ({
+          ...r,
+          reason: r.reason.replace(/^\[post:\d+\]\s*/, ''),
+        }));
+
+        res.json({ reports: cleaned, total: cleaned.length });
+      }
+    );
+  });
 };
