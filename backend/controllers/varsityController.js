@@ -12,7 +12,7 @@ function verifyClubOwnership(clubId, universityId, cb) {
   );
 }
 
-// ─── STATS ───────────────────────────────────────────────────────────────────
+// STATS
 
 exports.getStats = (req, res) => {
   const uid = req.query.university_id;
@@ -37,7 +37,7 @@ exports.getStats = (req, res) => {
               (err, s) => {
                 if (err) return res.status(500).json({ message: "Server error" });
 
-                // Inactive = student, approved, last_login null OR last_login older than 30 days
+                // Inactive
                 db.query(
                   `SELECT COUNT(*) AS total FROM users
                    WHERE university_id = ? AND role = 'student' AND status = 'approved'
@@ -63,7 +63,7 @@ exports.getStats = (req, res) => {
   });
 };
 
-// ─── PENDING CLUBS ────────────────────────────────────────────────────────────
+// PENDING CLUBS
 
 exports.getPendingClubs = (req, res) => {
   const uid = req.query.university_id;
@@ -101,7 +101,7 @@ exports.getPendingClubs = (req, res) => {
   });
 };
 
-// ─── APPROVE CLUB ─────────────────────────────────────────────────────────────
+// APPROVE CLUB
 
 exports.approveClub = (req, res) => {
   const { id } = req.params;
@@ -151,7 +151,7 @@ exports.approveClub = (req, res) => {
   });
 };
 
-// ─── REJECT CLUB ──────────────────────────────────────────────────────────────
+// REJECT CLUB
 
 exports.rejectClub = (req, res) => {
   const { id } = req.params;
@@ -186,7 +186,7 @@ exports.rejectClub = (req, res) => {
   });
 };
 
-// ─── GET CLUBS ────────────────────────────────────────────────────────────────
+// GET CLUBS
 
 exports.getClubs = (req, res) => {
   const uid = req.query.university_id;
@@ -205,7 +205,7 @@ exports.getClubs = (req, res) => {
   });
 };
 
-// ─── DELETE CLUB ──────────────────────────────────────────────────────────────
+// DELETE CLUB
 
 exports.deleteClub = (req, res) => {
   const { id } = req.params;
@@ -223,7 +223,7 @@ exports.deleteClub = (req, res) => {
   });
 };
 
-// ─── ARCHIVE CLUB (soft — sets status to 'archived') ─────────────────────────
+// ARCHIVE CLUB
 
 exports.archiveClub = (req, res) => {
   const { id } = req.params;
@@ -246,7 +246,7 @@ exports.archiveClub = (req, res) => {
   });
 };
 
-// ─── UNARCHIVE CLUB ───────────────────────────────────────────────────────────
+// UNARCHIVE CLUB
 
 exports.unarchiveClub = (req, res) => {
   const { id } = req.params;
@@ -269,7 +269,7 @@ exports.unarchiveClub = (req, res) => {
   });
 };
 
-// ─── GET ARCHIVED CLUBS ───────────────────────────────────────────────────────
+// GET ARCHIVED CLUBS
 
 exports.getArchivedClubs = (req, res) => {
   const uid = req.query.university_id;
@@ -289,7 +289,7 @@ exports.getArchivedClubs = (req, res) => {
   );
 };
 
-// ─── STUDENTS ─────────────────────────────────────────────────────────────────
+// STUDENTS
 
 exports.getStudents = (req, res) => {
   const uid = req.query.university_id;
@@ -347,7 +347,7 @@ exports.removeStudent = (req, res) => {
   );
 };
 
-// ─── INACTIVE STUDENTS ────────────────────────────────────────────────────────
+// INACTIVE STUDENTS
 
 exports.getInactiveStudents = (req, res) => {
   const uid  = req.query.university_id;
@@ -384,7 +384,7 @@ exports.removeInactiveStudents = (req, res) => {
   );
 };
 
-// ─── PENDING STUDENTS ─────────────────────────────────────────────────────────
+// PENDING STUDENTS
 
 exports.getPendingStudents = (req, res) => {
   const uid = req.query.university_id;
@@ -432,7 +432,7 @@ exports.rejectStudent = (req, res) => {
   );
 };
 
-// ─── UNIVERSITY SETTINGS ──────────────────────────────────────────────────────
+// UNIVERSITY SETTINGS
 
 exports.getUniversitySettings = (req, res) => {
   const uid = req.query.university_id;
