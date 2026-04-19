@@ -3,13 +3,9 @@ import axios from 'axios';
 
 const API = axios.create({ baseURL: 'http://localhost:5000/api' });
 
-// Attach JWT token automatically
-// Token is stored inside the user object by the existing Login.js
 API.interceptors.request.use((config) => {
-  // First try standalone token key
   let token = localStorage.getItem('token');
 
-  // Fallback: read token from inside the user object (how existing Login.js saves it)
   if (!token) {
     try {
       const user = JSON.parse(localStorage.getItem('user'));
@@ -21,11 +17,11 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-// ── AUTH ──────────────────────────────────────────────────────────────────────
+//AUTH
 export const login    = (data) => API.post('/auth/login', data);
 export const register = (data) => API.post('/auth/register', data);
 
-// ── PROFILE ───────────────────────────────────────────────────────────────────
+//PROFILE
 export const getMyProfile    = ()     => API.get('/profile/me');
 export const updateMyProfile = (form) => API.put('/profile/me', form, {
   headers: { 'Content-Type': 'multipart/form-data' },
@@ -35,7 +31,7 @@ export const getUserProfile  = (id)   => API.get(`/profile/${id}`);
 export const getVarsityUsers = ()     => API.get('/profile/users');
 export const getUserPosts    = (id)   => API.get(`/profile/${id}/posts`);
 
-// ── POSTS ─────────────────────────────────────────────────────────────────────
+//POSTS
 export const getFeed    = (page = 1) => API.get(`/posts?page=${page}`);
 export const createPost = (form)     => API.post('/posts', form, {
   headers: { 'Content-Type': 'multipart/form-data' },
@@ -53,8 +49,8 @@ export const deleteComment = (commentId)       => API.delete(`/posts/comments/${
 
 // Share
 export const sharePost = (postId) => API.post(`/posts/${postId}/share`);
-
-// ── NOTICES ───────────────────────────────────────────────────────────────────
+export const reportPost     = (postId, reason) => API.post(`/posts/${postId}/report`, { reason });
+export const getPostReports = (postId)         => API.get(`/posts/${postId}/reports`);
 export const getNotices   = (page = 1) => API.get(`/notices?page=${page}`);
 export const createNotice = (data)     => API.post('/notices', data);
 export const deleteNotice = (id)       => API.delete(`/notices/${id}`);
