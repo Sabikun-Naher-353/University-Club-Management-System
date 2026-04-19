@@ -12,7 +12,6 @@ function verifyClubOwnership(clubId, universityId, cb) {
   );
 }
 
-// STATS
 
 exports.getStats = (req, res) => {
   const uid = req.query.university_id;
@@ -37,7 +36,6 @@ exports.getStats = (req, res) => {
               (err, s) => {
                 if (err) return res.status(500).json({ message: "Server error" });
 
-                // Inactive
                 db.query(
                   `SELECT COUNT(*) AS total FROM users
                    WHERE university_id = ? AND role = 'student' AND status = 'approved'
@@ -45,13 +43,22 @@ exports.getStats = (req, res) => {
                   [uid],
                   (err, inactive) => {
                     if (err) return res.status(500).json({ message: "Server error" });
-                    res.json({
-                      clubs:          c[0].total,
-                      pendingClubs:   p[0].total + op[0].total,
-                      archivedClubs:  ar[0].total,
-                      students:       s[0].total,
-                      inactiveStudents: inactive[0].total,
-                    });
+
+                    db.query(
+                      "SELECT COUNT(*) AS total FROM users WHERE university_id = ? AND role = 'student' AND status = 'pending'",
+                      [uid],
+                      (err, ps) => {
+                        if (err) return res.status(500).json({ message: "Server error" });
+                        res.json({
+                          clubs:            c[0].total,
+                          pendingClubs:     p[0].total + op[0].total,
+                          archivedClubs:    ar[0].total,
+                          students:         s[0].total,
+                          pendingStudents:  ps[0].total,
+                          inactiveStudents: inactive[0].total,
+                        });
+                      }
+                    );
                   }
                 );
               }
@@ -63,7 +70,6 @@ exports.getStats = (req, res) => {
   });
 };
 
-// PENDING CLUBS
 
 exports.getPendingClubs = (req, res) => {
   const uid = req.query.university_id;
@@ -101,7 +107,6 @@ exports.getPendingClubs = (req, res) => {
   });
 };
 
-// APPROVE CLUB
 
 exports.approveClub = (req, res) => {
   const { id } = req.params;
@@ -151,7 +156,6 @@ exports.approveClub = (req, res) => {
   });
 };
 
-// REJECT CLUB
 
 exports.rejectClub = (req, res) => {
   const { id } = req.params;
@@ -186,7 +190,6 @@ exports.rejectClub = (req, res) => {
   });
 };
 
-// GET CLUBS
 
 exports.getClubs = (req, res) => {
   const uid = req.query.university_id;
@@ -205,7 +208,6 @@ exports.getClubs = (req, res) => {
   });
 };
 
-// DELETE CLUB
 
 exports.deleteClub = (req, res) => {
   const { id } = req.params;
@@ -223,7 +225,6 @@ exports.deleteClub = (req, res) => {
   });
 };
 
-// ARCHIVE CLUB
 
 exports.archiveClub = (req, res) => {
   const { id } = req.params;
@@ -238,15 +239,14 @@ exports.archiveClub = (req, res) => {
       "UPDATE clubs SET status = 'archived' WHERE id = ? AND status = 'approved'",
       [id],
       (err, result) => {
-        if (err)                       return res.status(500).json({ message: "Server error" });
-        if (result.affectedRows === 0)  return res.status(404).json({ message: "Club not found or already archived" });
+        if (err)                      return res.status(500).json({ message: "Server error" });
+        if (result.affectedRows === 0) return res.status(404).json({ message: "Club not found or already archived" });
         res.json({ message: "Club archived" });
       }
     );
   });
 };
 
-// UNARCHIVE CLUB
 
 exports.unarchiveClub = (req, res) => {
   const { id } = req.params;
@@ -261,15 +261,14 @@ exports.unarchiveClub = (req, res) => {
       "UPDATE clubs SET status = 'approved' WHERE id = ? AND status = 'archived'",
       [id],
       (err, result) => {
-        if (err)                       return res.status(500).json({ message: "Server error" });
-        if (result.affectedRows === 0)  return res.status(404).json({ message: "Club not found or not archived" });
+        if (err)                      return res.status(500).json({ message: "Server error" });
+        if (result.affectedRows === 0) return res.status(404).json({ message: "Club not found or not archived" });
         res.json({ message: "Club restored" });
       }
     );
   });
 };
 
-// GET ARCHIVED CLUBS
 
 exports.getArchivedClubs = (req, res) => {
   const uid = req.query.university_id;
@@ -289,7 +288,6 @@ exports.getArchivedClubs = (req, res) => {
   );
 };
 
-// STUDENTS
 
 exports.getStudents = (req, res) => {
   const uid = req.query.university_id;
@@ -340,14 +338,13 @@ exports.removeStudent = (req, res) => {
     "DELETE FROM users WHERE id = ? AND university_id = ? AND role = 'student'",
     [id, university_id],
     (err, result) => {
-      if (err)                       return res.status(500).json({ message: "Server error" });
-      if (result.affectedRows === 0)  return res.status(403).json({ message: "Not authorized or student not found" });
+      if (err)                      return res.status(500).json({ message: "Server error" });
+      if (result.affectedRows === 0) return res.status(403).json({ message: "Not authorized or student not found" });
       res.json({ message: "Student removed" });
     }
   );
 };
 
-// INACTIVE STUDENTS
 
 exports.getInactiveStudents = (req, res) => {
   const uid  = req.query.university_id;
@@ -384,7 +381,6 @@ exports.removeInactiveStudents = (req, res) => {
   );
 };
 
-// PENDING STUDENTS
 
 exports.getPendingStudents = (req, res) => {
   const uid = req.query.university_id;
@@ -409,8 +405,8 @@ exports.approveStudent = (req, res) => {
     "UPDATE users SET status = 'approved' WHERE id = ? AND university_id = ? AND role = 'student' AND status = 'pending'",
     [id, university_id],
     (err, result) => {
-      if (err)                       return res.status(500).json({ message: "Server error" });
-      if (result.affectedRows === 0)  return res.status(404).json({ message: "Student not found" });
+      if (err)                      return res.status(500).json({ message: "Server error" });
+      if (result.affectedRows === 0) return res.status(404).json({ message: "Student not found" });
       res.json({ message: "Student approved" });
     }
   );
@@ -425,14 +421,13 @@ exports.rejectStudent = (req, res) => {
     "DELETE FROM users WHERE id = ? AND university_id = ? AND role = 'student' AND status = 'pending'",
     [id, university_id],
     (err, result) => {
-      if (err)                       return res.status(500).json({ message: "Server error" });
-      if (result.affectedRows === 0)  return res.status(404).json({ message: "Student not found" });
+      if (err)                      return res.status(500).json({ message: "Server error" });
+      if (result.affectedRows === 0) return res.status(404).json({ message: "Student not found" });
       res.json({ message: "Student rejected" });
     }
   );
 };
 
-// UNIVERSITY SETTINGS
 
 exports.getUniversitySettings = (req, res) => {
   const uid = req.query.university_id;
@@ -442,8 +437,8 @@ exports.getUniversitySettings = (req, res) => {
     "SELECT id, name, description, logo_url, contact_email, website, country FROM universities WHERE id = ?",
     [uid],
     (err, rows) => {
-      if (err)            return res.status(500).json({ message: "Server error" });
-      if (!rows.length)   return res.status(404).json({ message: "University not found" });
+      if (err)          return res.status(500).json({ message: "Server error" });
+      if (!rows.length) return res.status(404).json({ message: "University not found" });
       res.json(rows[0]);
     }
   );
@@ -459,11 +454,11 @@ exports.updateUniversitySettings = (req, res) => {
   const fields = [];
   const values = [];
 
-  if (name)          { fields.push("name = ?");          values.push(name.trim()); }
-  if (description !== undefined) { fields.push("description = ?"); values.push(description.trim()); }
-  if (contact_email) { fields.push("contact_email = ?"); values.push(contact_email.trim()); }
-  if (website)       { fields.push("website = ?");       values.push(website.trim()); }
-  if (logo_url)      { fields.push("logo_url = ?");      values.push(logo_url); }
+  if (name)                      { fields.push("name = ?");          values.push(name.trim()); }
+  if (description !== undefined) { fields.push("description = ?");   values.push(description.trim()); }
+  if (contact_email)             { fields.push("contact_email = ?"); values.push(contact_email.trim()); }
+  if (website)                   { fields.push("website = ?");       values.push(website.trim()); }
+  if (logo_url)                  { fields.push("logo_url = ?");      values.push(logo_url); }
 
   if (!fields.length) return res.status(400).json({ message: "Nothing to update" });
 
@@ -472,8 +467,8 @@ exports.updateUniversitySettings = (req, res) => {
     `UPDATE universities SET ${fields.join(", ")} WHERE id = ?`,
     values,
     (err, result) => {
-      if (err)                       return res.status(500).json({ message: "Server error" });
-      if (result.affectedRows === 0)  return res.status(404).json({ message: "University not found" });
+      if (err)                      return res.status(500).json({ message: "Server error" });
+      if (result.affectedRows === 0) return res.status(404).json({ message: "University not found" });
       res.json({ message: "University settings updated" });
     }
   );
