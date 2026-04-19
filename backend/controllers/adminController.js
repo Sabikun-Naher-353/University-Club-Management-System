@@ -64,6 +64,7 @@ exports.login = (req, res) => {
     if (!passwordMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
+    db.query("UPDATE users SET last_login = NOW() WHERE id = ?", [user.id], () => {});
 
     sendToken(res, user);
   });
@@ -341,3 +342,4 @@ exports.removeMember = (req, res) => {
 exports.getViolators = (req, res) => {
   res.json({ message: "Violators endpoint - implement as needed" });
 };
+
