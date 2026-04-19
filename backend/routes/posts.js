@@ -15,7 +15,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, 
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = [
       'image/jpeg','image/png','image/gif','image/webp',
@@ -45,5 +45,9 @@ router.delete('/comments/:commentId',  verifyToken, postController.deleteComment
 
 // SHARE
 router.post('/:postId/share',  verifyToken, postController.sharePost);
+
+// REPORTS 
+router.post('/:postId/report',  verifyToken, postController.reportPost);
+router.get('/:postId/reports',  verifyToken, postController.getPostReports);
 
 module.exports = router;
