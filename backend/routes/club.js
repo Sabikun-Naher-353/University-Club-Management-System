@@ -11,11 +11,10 @@ router.post("/add-member",           clubController.addMember);
 router.put("/approve-member/:userId",clubController.approveMember);
 router.delete("/remove-member/:userId", clubController.removeMember);
 
-// join requests
 router.get("/join-requests",                  clubController.getJoinRequests);
 router.put("/approve-join/:membershipId",     clubController.approveJoinRequest);
 router.delete("/reject-join/:membershipId",   clubController.rejectJoinRequest);
 
 router.get("/feed/:clubId", clubController.getClubFeed);
-
+router.get('/memberships/:clubId', clubController.getClubMemberships);
 module.exports = router;

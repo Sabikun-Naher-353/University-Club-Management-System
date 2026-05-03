@@ -13,6 +13,19 @@ function getOwnedClub(repUserId, cb) {
   );
 }
 
+//approved member count
+function getMemberCount(clubId, cb) {
+  db.query(
+    `SELECT COUNT(*) AS total FROM memberships 
+     WHERE club_id = ? AND status = 'approved'`,
+    [clubId],
+    (err, rows) => {
+      if (err) return cb(err, null);
+      cb(null, rows[0].total);
+    }
+  );
+}
+
 
 exports.getMyClub = (req, res) => {
   const repId = req.query.rep_id;
@@ -54,9 +67,19 @@ exports.getStats = (req, res) => {
           [clubId],
           (err, pn) => {
             if (err) return res.status(500).json({ message: "Server error" });
+            
+            // Calculate available seats
+            const approvedCount = ap[0].total;
+            const maxSeats = club.max_seats || 0;
+            const availableSeats = maxSeats > 0 ? maxSeats - approvedCount : null;
+            const isFull = maxSeats > 0 && approvedCount >= maxSeats;
+
             res.json({
-              approvedMembers: ap[0].total,
+              approvedMembers: approvedCount,
               pendingMembers:  pn[0].total,
+              maxSeats:        maxSeats,
+              availableSeats:  availableSeats,
+              isFull:          isFull,
             });
           }
         );
@@ -97,30 +120,50 @@ exports.addMember = (req, res) => {
     if (err)   return res.status(500).json({ message: "Server error" });
     if (!club) return res.status(403).json({ message: "No approved club found for this rep" });
 
-    db.query("SELECT id FROM users WHERE email = ?", [email.trim()], (err, rows) => {
-      if (err)             return res.status(500).json({ message: "Server error" });
-      if (rows.length > 0) return res.status(409).json({ message: "Email already in use" });
-
-      db.query(
-        "INSERT INTO users (name, email, password, role, status, university_id) VALUES (?, ?, ?, 'student', 'approved', ?)",
-        [name, email.trim(), password, club.university_id],
-        (err, result) => {
-          if (err) return res.status(500).json({ message: "Server error" });
-          const userId = result.insertId;
-          db.query(
-            "INSERT INTO memberships (user_id, club_id, status) VALUES (?, ?, 'approved')",
-            [userId, club.id],
-            (err) => {
-              if (err) return res.status(500).json({ message: "Server error" });
-              res.json({ message: "Member added", id: userId });
-            }
-          );
+    // Check if club has max seat limit and if it's full
+    if (club.max_seats && club.max_seats > 0) {
+      getMemberCount(club.id, (err, memberCount) => {
+        if (err) return res.status(500).json({ message: "Server error" });
+        
+        if (memberCount >= club.max_seats) {
+          return res.status(409).json({ 
+            message: `Club is full. Maximum ${club.max_seats} members allowed, currently has ${memberCount} members.` 
+          });
         }
-      );
-    });
+
+        // Proceed with adding member
+        proceedAddMember(club, email, name, password, res);
+      });
+    } else {
+      // No max seat limit, proceed normally
+      proceedAddMember(club, email, name, password, res);
+    }
   });
 };
 
+function proceedAddMember(club, email, name, password, res) {
+  db.query("SELECT id FROM users WHERE email = ?", [email.trim()], (err, rows) => {
+    if (err)             return res.status(500).json({ message: "Server error" });
+    if (rows.length > 0) return res.status(409).json({ message: "Email already in use" });
+
+    db.query(
+      "INSERT INTO users (name, email, password, role, status, university_id) VALUES (?, ?, ?, 'student', 'approved', ?)",
+      [name, email.trim(), password, club.university_id],
+      (err, result) => {
+        if (err) return res.status(500).json({ message: "Server error" });
+        const userId = result.insertId;
+        db.query(
+          "INSERT INTO memberships (user_id, club_id, status) VALUES (?, ?, 'approved')",
+          [userId, club.id],
+          (err) => {
+            if (err) return res.status(500).json({ message: "Server error" });
+            res.json({ message: "Member added", id: userId });
+          }
+        );
+      }
+    );
+  });
+}
 
 exports.approveMember = (req, res) => {
   const { userId } = req.params;
@@ -131,26 +174,47 @@ exports.approveMember = (req, res) => {
     if (err)   return res.status(500).json({ message: "Server error" });
     if (!club) return res.status(403).json({ message: "No approved club found for this rep" });
 
-    db.query(
-      "SELECT id FROM memberships WHERE user_id = ? AND club_id = ?",
-      [userId, club.id],
-      (err, rows) => {
-        if (err)               return res.status(500).json({ message: "Server error" });
-        if (rows.length === 0) return res.status(403).json({ message: "This user is not a member of your club" });
+    // Check if club has seat available
+    if (club.max_seats && club.max_seats > 0) {
+      getMemberCount(club.id, (err, memberCount) => {
+        if (err) return res.status(500).json({ message: "Server error" });
+        
+        if (memberCount >= club.max_seats) {
+          return res.status(409).json({ 
+            message: `Cannot approve. Club is full. Maximum ${club.max_seats} members allowed.` 
+          });
+        }
 
-        db.query(
-          "UPDATE users SET status = 'approved' WHERE id = ? AND status = 'pending'",
-          [userId],
-          (err, result) => {
-            if (err)                      return res.status(500).json({ message: "Server error" });
-            if (result.affectedRows === 0) return res.status(400).json({ message: "User is already approved or not found" });
-            res.json({ message: "Member approved" });
-          }
-        );
-      }
-    );
+        
+        proceedApproveMember(club, userId, res);
+      });
+    } else {
+      
+      proceedApproveMember(club, userId, res);
+    }
   });
 };
+
+function proceedApproveMember(club, userId, res) {
+  db.query(
+    "SELECT id FROM memberships WHERE user_id = ? AND club_id = ?",
+    [userId, club.id],
+    (err, rows) => {
+      if (err)               return res.status(500).json({ message: "Server error" });
+      if (rows.length === 0) return res.status(403).json({ message: "This user is not a member of your club" });
+
+      db.query(
+        "UPDATE users SET status = 'approved' WHERE id = ? AND status = 'pending'",
+        [userId],
+        (err, result) => {
+          if (err)                      return res.status(500).json({ message: "Server error" });
+          if (result.affectedRows === 0) return res.status(400).json({ message: "User is already approved or not found" });
+          res.json({ message: "Member approved" });
+        }
+      );
+    }
+  );
+}
 
 exports.removeMember = (req, res) => {
   const { userId } = req.params;
@@ -206,25 +270,44 @@ exports.approveJoinRequest = (req, res) => {
     if (err)   return res.status(500).json({ message: "Server error" });
     if (!club) return res.status(403).json({ message: "No approved club found for this rep" });
 
-    db.query(
-      "SELECT id FROM memberships WHERE id = ? AND club_id = ? AND status = 'pending'",
-      [membershipId, club.id],
-      (err, rows) => {
-        if (err)               return res.status(500).json({ message: "Server error" });
-        if (rows.length === 0) return res.status(404).json({ message: "Request not found" });
+    // Check if club has seat available
+    if (club.max_seats && club.max_seats > 0) {
+      getMemberCount(club.id, (err, memberCount) => {
+        if (err) return res.status(500).json({ message: "Server error" });
+        
+        if (memberCount >= club.max_seats) {
+          return res.status(409).json({ 
+            message: `Cannot approve. Club is full. Maximum ${club.max_seats} members allowed.` 
+          });
+        }
 
-        db.query(
-          "UPDATE memberships SET status = 'approved' WHERE id = ?",
-          [membershipId],
-          (err) => {
-            if (err) return res.status(500).json({ message: "Server error" });
-            res.json({ message: "Join request approved" });
-          }
-        );
-      }
-    );
+        proceedApproveJoinRequest(club, membershipId, res);
+      });
+    } else {
+      proceedApproveJoinRequest(club, membershipId, res);
+    }
   });
 };
+
+function proceedApproveJoinRequest(club, membershipId, res) {
+  db.query(
+    "SELECT id FROM memberships WHERE id = ? AND club_id = ? AND status = 'pending'",
+    [membershipId, club.id],
+    (err, rows) => {
+      if (err)               return res.status(500).json({ message: "Server error" });
+      if (rows.length === 0) return res.status(404).json({ message: "Request not found" });
+
+      db.query(
+        "UPDATE memberships SET status = 'approved' WHERE id = ?",
+        [membershipId],
+        (err) => {
+          if (err) return res.status(500).json({ message: "Server error" });
+          res.json({ message: "Join request approved" });
+        }
+      );
+    }
+  );
+}
 
 exports.rejectJoinRequest = (req, res) => {
   const { membershipId } = req.params;
@@ -246,6 +329,7 @@ exports.rejectJoinRequest = (req, res) => {
     );
   });
 };
+
 exports.getClubFeed = (req, res) => {
   const { clubId } = req.params;
   const userId = req.query.user_id || 0;
@@ -273,3 +357,29 @@ exports.getClubFeed = (req, res) => {
   });
 };
 
+exports.getClubMemberships = (req, res) => {
+  const { clubId } = req.params;
+  
+  const sql = `
+    SELECT DISTINCT m.user_id, m.status 
+    FROM memberships m
+    WHERE m.club_id = ?
+    
+    UNION
+    
+    SELECT DISTINCT c.requested_by_user_id AS user_id, 'approved' AS status
+    FROM clubs c
+    WHERE c.id = ? AND c.requested_by_user_id IS NOT NULL
+    
+    UNION
+    
+    SELECT DISTINCT c.created_by AS user_id, 'approved' AS status
+    FROM clubs c
+    WHERE c.id = ? AND c.created_by IS NOT NULL
+  `;
+  
+  db.query(sql, [clubId, clubId, clubId], (err, results) => {
+    if (err) return res.status(500).json({ error: 'DB error', details: err.message });
+    res.json(results);
+  });
+};

@@ -129,3 +129,29 @@ exports.cancelRequest = (req, res) => {
     }
   );
 };
+exports.getTrendingClubs = (req, res) => {
+  const uid = req.query.university_id;
+  if (!uid) return res.status(400).json({ message: "university_id required" });
+
+  const sql = `
+    SELECT
+      c.id, c.name, c.description, c.max_seats,
+      COUNT(DISTINCT m.id) AS member_count,
+      GREATEST(0, c.max_seats - COUNT(DISTINCT m.id)) AS seats_available,
+      (
+        SELECT COUNT(*) FROM memberships m2
+        WHERE m2.club_id = c.id
+          AND m2.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      ) AS recent_joins
+    FROM clubs c
+    LEFT JOIN memberships m ON m.club_id = c.id AND m.status = 'approved'
+    WHERE c.university_id = ? AND c.status = 'approved'
+    GROUP BY c.id
+    ORDER BY member_count DESC, recent_joins DESC
+    LIMIT 3
+  `;
+  db.query(sql, [uid], (err, rows) => {
+    if (err) return res.status(500).json({ message: "Server error" });
+    res.json(rows);
+  });
+};

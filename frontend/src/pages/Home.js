@@ -78,7 +78,7 @@ export default function Home() {
           --mint:         #3DBFA0;
           --mint-light:   #E8F5F0;
           --mint-mid:     #5ECDB3;
-          --mint-dark:    #2A9E83;
+          --mint-dark:    #RRRR3E;
           --text:         #2A3B35;
           --text-soft:    #6B7F78;
           --text-muted:   #9DB5AE;

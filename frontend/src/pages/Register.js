@@ -89,7 +89,7 @@ export default function Register() {
   const [universities,     setUniversities]     = useState([]);
   const [form,             setForm]             = useState({
     name:"", username:"", email:"", password:"", confirmPassword:"",
-    birthday:"", country:"", universityId:"", varsityName:"", clubName:"",
+    birthday:"", country:"", universityId:"", varsityName:"", clubName:"", maxSeats:"",
   });
   const [errors,           setErrors]           = useState({});
   const [submitting,       setSubmitting]       = useState(false);
@@ -102,7 +102,7 @@ export default function Register() {
   useEffect(() => { setTimeout(() => setVisible(true), 60); }, []);
 
   useEffect(() => {
-    fetch(`${API}/auth/universities`)
+    fetch(`${API}/admin/universities`)
       .then(r => r.json())
       .then(d => setUniversities(d.map(u => ({ id: u.id, name: u.name }))))
       .catch(() => {});
@@ -117,7 +117,7 @@ export default function Register() {
     if (!isValidEmail(email)) return;
     setCheckingEmail(true);
     try {
-      const r = await fetch(`${API}/auth/check-email`, {
+      const r = await fetch(`${API}/admin/check-email`, {
         method:"POST", headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ email }),
       });
@@ -131,7 +131,7 @@ export default function Register() {
     if (username.length < 3) return;
     setCheckingUsername(true);
     try {
-      const r = await fetch(`${API}/auth/check-username`, {
+      const r = await fetch(`${API}/admin/check-username`, {
         method:"POST", headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ username }),
       });
@@ -162,6 +162,12 @@ export default function Register() {
       if (!form.name.trim())        e.name         = "Name is required.";
       if (!form.universityId)       e.universityId = "Select your university.";
       if (!form.clubName.trim())    e.clubName     = "Club name is required.";
+      
+      const seats = parseInt(form.maxSeats, 10);
+      if (!form.maxSeats || isNaN(seats) || seats <= 0)
+        e.maxSeats = "Maximum members must be a positive number.";
+      if (seats > 500)
+        e.maxSeats = "Maximum members cannot exceed 500.";
     }
     return e;
   };
@@ -174,9 +180,9 @@ export default function Register() {
       const payload = { role, email: form.email, password: form.password };
       if (role === "student") Object.assign(payload, { name: form.name, username: form.username, birthday: form.birthday, country: form.country, universityId: form.universityId });
       if (role === "varsity") Object.assign(payload, { varsityName: form.varsityName, country: form.country });
-      if (role === "club")    Object.assign(payload, { name: form.name, universityId: form.universityId, clubName: form.clubName });
+      if (role === "club")    Object.assign(payload, { name: form.name, universityId: form.universityId, clubName: form.clubName, maxSeats: form.maxSeats });
 
-      const res  = await fetch(`${API}/auth/register`, {
+      const res  = await fetch(`${API}/admin/register`, {
         method:"POST", headers:{ "Content-Type":"application/json" },
         body: JSON.stringify(payload),
       });
@@ -446,9 +452,21 @@ export default function Register() {
                   <Input placeholder="e.g. Robotics Club" value={form.clubName} error={errors.clubName} onChange={e => set("clubName", e.target.value)} />
                 </Field>
 
+                <Field label="Maximum Members Allowed *" error={errors.maxSeats} hint="How many members can join your club? Enter a number between 1 and 500.">
+                  <Input 
+                    type="number" 
+                    placeholder="e.g. 50" 
+                    min="1" 
+                    max="500"
+                    value={form.maxSeats} 
+                    error={errors.maxSeats} 
+                    onChange={e => set("maxSeats", e.target.value)} 
+                  />
+                </Field>
+
                 <div className="info-box" style={{ background: isDark ? "rgba(244,132,95,0.07)" : "#FEF0EC", borderColor: isDark ? "rgba(244,132,95,0.2)" : "#F4C5B0" }}>
                   <span style={{ color:"#F4845F", marginRight:8 }}>ℹ</span>
-                  Your club registration request will be reviewed by the University Authority before it's approved.
+                  Your club registration request will be reviewed by the University Authority before it's approved. You can modify the maximum member limit anytime after approval.
                 </div>
               </>}
 

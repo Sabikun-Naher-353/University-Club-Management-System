@@ -13,7 +13,7 @@ const ROLE_META = {
   student:       { bg: "rgba(232,194,74,0.15)",  color: "#E8C24A", label: "Student"       },
 };
 
-// ── Avatar ─────────────────────────────────────────────────────────
+// Avatar
 function Avatar({ src, name, size = 46 }) {
   const initials = name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   return (
@@ -31,7 +31,7 @@ function Avatar({ src, name, size = 46 }) {
   );
 }
 
-// ── UserCard ───────────────────────────────────────────────────────
+// UserCard
 function UserCard({ user, onClick }) {
   const [hover, setHover] = useState(false);
   const rm = ROLE_META[user.role] || ROLE_META.student;
@@ -71,7 +71,7 @@ function UserCard({ user, onClick }) {
   );
 }
 
-// ── Main Component ─────────────────────────────────────────────────
+//Main Component
 export default function Users() {
   const navigate    = useNavigate();
   const { isDark }  = useTheme();
@@ -107,7 +107,7 @@ export default function Users() {
   useEffect(() => {
     if (storedUser.role === "super_admin") {
       if (varsityFilter !== "all") {
-        fetch(`http://localhost:5000/api/auth/clubs?universityId=${varsityFilter}`)
+        fetch(`http://localhost:5000/api/admin/clubs?universityId=${varsityFilter}`)
           .then(r => r.json())
           .then(d => setClubs(Array.isArray(d) ? d : []))
           .catch(() => {});
@@ -118,7 +118,7 @@ export default function Users() {
           .catch(() => {});
       }
     } else if (uid) {
-      fetch(`http://localhost:5000/api/auth/clubs?universityId=${uid}`)
+      fetch(`http://localhost:5000/api/admin/clubs?universityId=${uid}`)
         .then(r => r.json())
         .then(d => setClubs(Array.isArray(d) ? d : []))
         .catch(() => {});
@@ -126,19 +126,32 @@ export default function Users() {
   }, [uid, varsityFilter]); // eslint-disable-line
 
   useEffect(() => {
-    if (clubFilter === "all") { setClubMembers(null); return; }
+    if (clubFilter === "all") { 
+      setClubMembers(null); 
+      return; 
+    }
+    
     const selectedClub = clubs.find(c => String(c.id) === String(clubFilter));
-    if (!selectedClub) { setClubMembers(null); return; }
-    const uniId = varsityFilter !== "all" ? varsityFilter : uid;
-    if (!uniId) { setClubMembers(null); return; }
-    fetch(`http://localhost:5000/api/varsity/students?university_id=${uniId}`)
+    if (!selectedClub) { 
+      setClubMembers(null); 
+      return; 
+    }
+
+    // Fetch memberships directly from the memberships table
+    fetch(`http://localhost:5000/api/club/memberships/${selectedClub.id}`)
       .then(r => r.json())
-      .then(students => {
-        const ids = new Set(students.filter(s => s.club_name === selectedClub.name).map(s => s.id));
-        setClubMembers(ids);
+      .then(data => {
+        // Extract user IDs from approved memberships
+        const memberIds = Array.isArray(data) 
+          ? new Set(data.filter(m => m.status === 'approved').map(m => m.user_id))
+          : new Set();
+        setClubMembers(memberIds);
       })
-      .catch(() => setClubMembers(null));
-  }, [clubFilter, uid, clubs, varsityFilter]); // eslint-disable-line
+      .catch(err => {
+        console.error('Error fetching memberships:', err);
+        setClubMembers(null);
+      });
+  }, [clubFilter, clubs]);
 
   const roles    = ["all", ...new Set(users.map(u => u.role).filter(r => r && r !== "sub_club_rep"))];
   const filtered = users.filter(u => {

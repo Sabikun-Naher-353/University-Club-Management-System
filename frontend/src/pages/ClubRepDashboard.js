@@ -354,7 +354,7 @@ export default function ClubRepDashboard() {
                     <div style={{ fontSize:".85rem", color:"var(--text-soft)" }}>Members awaiting approval.</div>
                   </div>
                   <button
-                    onClick={() => setSection("members")}
+                    onClick={() => setSection("joinreqs")}
                     style={{ padding:"10px 22px", background:"rgba(232,194,74,0.15)", color:"#E8C24A", border:"1.5px solid rgba(232,194,74,0.3)", borderRadius:10, cursor:"pointer", fontSize:".82rem", fontWeight:600, whiteSpace:"nowrap", fontFamily:"'DM Sans',sans-serif", transition:"background .2s" }}
                     onMouseEnter={e => e.currentTarget.style.background = "rgba(232,194,74,0.28)"}
                     onMouseLeave={e => e.currentTarget.style.background = "rgba(232,194,74,0.15)"}

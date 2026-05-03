@@ -1,4 +1,4 @@
-//controllers/varsityController.js
+// controllers/varsityController.js
 const db = require("../models/db");
 
 function verifyClubOwnership(clubId, universityId, cb) {
@@ -12,6 +12,7 @@ function verifyClubOwnership(clubId, universityId, cb) {
   );
 }
 
+
 exports.getStats = (req, res) => {
   const uid = req.query.university_id;
   if (!uid) return res.status(400).json({ message: "university_id required" });
@@ -20,30 +21,55 @@ exports.getStats = (req, res) => {
     if (err) return res.status(500).json({ message: "Server error" });
     db.query("SELECT COUNT(*) AS total FROM clubs WHERE university_id = ? AND status = 'pending'", [uid], (err, p) => {
       if (err) return res.status(500).json({ message: "Server error" });
-      db.query(
-        `SELECT COUNT(*) AS total FROM users
-         WHERE role = 'club_rep' AND status = 'pending' AND university_id = ?
-         AND NOT EXISTS (SELECT 1 FROM clubs c WHERE c.requested_by_user_id = users.id)`,
-        [uid],
-        (err, op) => {
-          if (err) return res.status(500).json({ message: "Server error" });
-          db.query(
-            "SELECT COUNT(*) AS total FROM users WHERE university_id = ? AND role = 'student'",
-            [uid],
-            (err, s) => {
-              if (err) return res.status(500).json({ message: "Server error" });
-              res.json({
-                clubs:        c[0].total,
-                pendingClubs: p[0].total + op[0].total,
-                students:     s[0].total,
-              });
-            }
-          );
-        }
-      );
+      db.query("SELECT COUNT(*) AS total FROM clubs WHERE university_id = ? AND status = 'archived'", [uid], (err, ar) => {
+        if (err) return res.status(500).json({ message: "Server error" });
+        db.query(
+          `SELECT COUNT(*) AS total FROM users
+           WHERE role = 'club_rep' AND status = 'pending' AND university_id = ?
+           AND NOT EXISTS (SELECT 1 FROM clubs c WHERE c.requested_by_user_id = users.id)`,
+          [uid],
+          (err, op) => {
+            if (err) return res.status(500).json({ message: "Server error" });
+            db.query(
+              "SELECT COUNT(*) AS total FROM users WHERE university_id = ? AND role = 'student'",
+              [uid],
+              (err, s) => {
+                if (err) return res.status(500).json({ message: "Server error" });
+
+                db.query(
+                  `SELECT COUNT(*) AS total FROM users
+                   WHERE university_id = ? AND role = 'student' AND status = 'approved'
+                   AND (last_login IS NULL OR last_login < DATE_SUB(NOW(), INTERVAL 30 DAY))`,
+                  [uid],
+                  (err, inactive) => {
+                    if (err) return res.status(500).json({ message: "Server error" });
+
+                    db.query(
+                      "SELECT COUNT(*) AS total FROM users WHERE university_id = ? AND role = 'student' AND status = 'pending'",
+                      [uid],
+                      (err, ps) => {
+                        if (err) return res.status(500).json({ message: "Server error" });
+                        res.json({
+                          clubs:            c[0].total,
+                          pendingClubs:     p[0].total + op[0].total,
+                          archivedClubs:    ar[0].total,
+                          students:         s[0].total,
+                          pendingStudents:  ps[0].total,
+                          inactiveStudents: inactive[0].total,
+                        });
+                      }
+                    );
+                  }
+                );
+              }
+            );
+          }
+        );
+      });
     });
   });
 };
+
 
 exports.getPendingClubs = (req, res) => {
   const uid = req.query.university_id;
@@ -81,6 +107,7 @@ exports.getPendingClubs = (req, res) => {
   });
 };
 
+
 exports.approveClub = (req, res) => {
   const { id } = req.params;
   const { university_id, club_name, rep_user_id, source } = req.body;
@@ -102,14 +129,10 @@ exports.approveClub = (req, res) => {
           [club_name.trim(), university_id, rep_user_id],
           (err) => {
             if (err) return res.status(500).json({ message: "Server error (club insert)" });
-            db.query(
-              "UPDATE users SET status = 'approved' WHERE id = ?",
-              [rep_user_id],
-              (err) => {
-                if (err) return res.status(500).json({ message: "Server error (user update)" });
-                res.json({ message: "Club approved" });
-              }
-            );
+            db.query("UPDATE users SET status = 'approved' WHERE id = ?", [rep_user_id], (err) => {
+              if (err) return res.status(500).json({ message: "Server error (user update)" });
+              res.json({ message: "Club approved" });
+            });
           }
         );
       }
@@ -132,6 +155,7 @@ exports.approveClub = (req, res) => {
     });
   });
 };
+
 
 exports.rejectClub = (req, res) => {
   const { id } = req.params;
@@ -166,6 +190,7 @@ exports.rejectClub = (req, res) => {
   });
 };
 
+
 exports.getClubs = (req, res) => {
   const uid = req.query.university_id;
   if (!uid) return res.status(400).json({ message: "university_id required" });
@@ -183,6 +208,7 @@ exports.getClubs = (req, res) => {
   });
 };
 
+
 exports.deleteClub = (req, res) => {
   const { id } = req.params;
   const { university_id } = req.body;
@@ -199,13 +225,77 @@ exports.deleteClub = (req, res) => {
   });
 };
 
+
+exports.archiveClub = (req, res) => {
+  const { id } = req.params;
+  const { university_id } = req.body;
+  if (!university_id) return res.status(400).json({ message: "university_id required" });
+
+  verifyClubOwnership(id, university_id, (err, owned) => {
+    if (err)    return res.status(500).json({ message: "Server error" });
+    if (!owned) return res.status(403).json({ message: "Not authorized for this club" });
+
+    db.query(
+      "UPDATE clubs SET status = 'archived' WHERE id = ? AND status = 'approved'",
+      [id],
+      (err, result) => {
+        if (err)                      return res.status(500).json({ message: "Server error" });
+        if (result.affectedRows === 0) return res.status(404).json({ message: "Club not found or already archived" });
+        res.json({ message: "Club archived" });
+      }
+    );
+  });
+};
+
+
+exports.unarchiveClub = (req, res) => {
+  const { id } = req.params;
+  const { university_id } = req.body;
+  if (!university_id) return res.status(400).json({ message: "university_id required" });
+
+  verifyClubOwnership(id, university_id, (err, owned) => {
+    if (err)    return res.status(500).json({ message: "Server error" });
+    if (!owned) return res.status(403).json({ message: "Not authorized for this club" });
+
+    db.query(
+      "UPDATE clubs SET status = 'approved' WHERE id = ? AND status = 'archived'",
+      [id],
+      (err, result) => {
+        if (err)                      return res.status(500).json({ message: "Server error" });
+        if (result.affectedRows === 0) return res.status(404).json({ message: "Club not found or not archived" });
+        res.json({ message: "Club restored" });
+      }
+    );
+  });
+};
+
+
+exports.getArchivedClubs = (req, res) => {
+  const uid = req.query.university_id;
+  if (!uid) return res.status(400).json({ message: "university_id required" });
+
+  db.query(
+    `SELECT c.*, u.name AS university_name
+     FROM clubs c
+     LEFT JOIN universities u ON c.university_id = u.id
+     WHERE c.university_id = ? AND c.status = 'archived'
+     ORDER BY c.created_at DESC`,
+    [uid],
+    (err, result) => {
+      if (err) return res.status(500).json({ message: "Server error" });
+      res.json(result);
+    }
+  );
+};
+
+
 exports.getStudents = (req, res) => {
   const uid = req.query.university_id;
   if (!uid) return res.status(400).json({ message: "university_id required" });
 
   const sql = `
-    SELECT 
-      u.id, u.name, u.username, u.email, u.status, u.created_at,
+    SELECT
+      u.id, u.name, u.username, u.email, u.status, u.created_at, u.last_login,
       c.name AS club_name
     FROM users u
     LEFT JOIN memberships m ON m.user_id = u.id AND m.status = 'approved'
@@ -248,12 +338,49 @@ exports.removeStudent = (req, res) => {
     "DELETE FROM users WHERE id = ? AND university_id = ? AND role = 'student'",
     [id, university_id],
     (err, result) => {
-      if (err)                       return res.status(500).json({ message: "Server error" });
-      if (result.affectedRows === 0)  return res.status(403).json({ message: "Not authorized or student not found" });
+      if (err)                      return res.status(500).json({ message: "Server error" });
+      if (result.affectedRows === 0) return res.status(403).json({ message: "Not authorized or student not found" });
       res.json({ message: "Student removed" });
     }
   );
 };
+
+
+exports.getInactiveStudents = (req, res) => {
+  const uid  = req.query.university_id;
+  const days = parseInt(req.query.days) || 30;
+  if (!uid) return res.status(400).json({ message: "university_id required" });
+
+  db.query(
+    `SELECT id, name, email, created_at, last_login
+     FROM users
+     WHERE university_id = ? AND role = 'student' AND status = 'approved'
+       AND (last_login IS NULL OR last_login < DATE_SUB(NOW(), INTERVAL ? DAY))
+     ORDER BY last_login ASC`,
+    [uid, days],
+    (err, rows) => {
+      if (err) return res.status(500).json({ message: "Server error" });
+      res.json(rows);
+    }
+  );
+};
+
+exports.removeInactiveStudents = (req, res) => {
+  const { university_id, days = 30 } = req.body;
+  if (!university_id) return res.status(400).json({ message: "university_id required" });
+
+  db.query(
+    `DELETE FROM users
+     WHERE university_id = ? AND role = 'student' AND status = 'approved'
+       AND (last_login IS NULL OR last_login < DATE_SUB(NOW(), INTERVAL ? DAY))`,
+    [university_id, parseInt(days)],
+    (err, result) => {
+      if (err) return res.status(500).json({ message: "Server error" });
+      res.json({ message: `${result.affectedRows} inactive student(s) removed`, removed: result.affectedRows });
+    }
+  );
+};
+
 
 exports.getPendingStudents = (req, res) => {
   const uid = req.query.university_id;
@@ -278,8 +405,8 @@ exports.approveStudent = (req, res) => {
     "UPDATE users SET status = 'approved' WHERE id = ? AND university_id = ? AND role = 'student' AND status = 'pending'",
     [id, university_id],
     (err, result) => {
-      if (err)                       return res.status(500).json({ message: "Server error" });
-      if (result.affectedRows === 0)  return res.status(404).json({ message: "Student not found" });
+      if (err)                      return res.status(500).json({ message: "Server error" });
+      if (result.affectedRows === 0) return res.status(404).json({ message: "Student not found" });
       res.json({ message: "Student approved" });
     }
   );
@@ -294,9 +421,55 @@ exports.rejectStudent = (req, res) => {
     "DELETE FROM users WHERE id = ? AND university_id = ? AND role = 'student' AND status = 'pending'",
     [id, university_id],
     (err, result) => {
-      if (err)                       return res.status(500).json({ message: "Server error" });
-      if (result.affectedRows === 0)  return res.status(404).json({ message: "Student not found" });
+      if (err)                      return res.status(500).json({ message: "Server error" });
+      if (result.affectedRows === 0) return res.status(404).json({ message: "Student not found" });
       res.json({ message: "Student rejected" });
+    }
+  );
+};
+
+
+exports.getUniversitySettings = (req, res) => {
+  const uid = req.query.university_id;
+  if (!uid) return res.status(400).json({ message: "university_id required" });
+
+  db.query(
+    "SELECT id, name, description, logo_url, contact_email, website, country FROM universities WHERE id = ?",
+    [uid],
+    (err, rows) => {
+      if (err)          return res.status(500).json({ message: "Server error" });
+      if (!rows.length) return res.status(404).json({ message: "University not found" });
+      res.json(rows[0]);
+    }
+  );
+};
+
+exports.updateUniversitySettings = (req, res) => {
+  const { university_id, name, description, contact_email, website } = req.body;
+  if (!university_id) return res.status(400).json({ message: "university_id required" });
+
+  let logo_url = null;
+  if (req.file) logo_url = `/uploads/logos/${req.file.filename}`;
+
+  const fields = [];
+  const values = [];
+
+  if (name)                      { fields.push("name = ?");          values.push(name.trim()); }
+  if (description !== undefined) { fields.push("description = ?");   values.push(description.trim()); }
+  if (contact_email)             { fields.push("contact_email = ?"); values.push(contact_email.trim()); }
+  if (website)                   { fields.push("website = ?");       values.push(website.trim()); }
+  if (logo_url)                  { fields.push("logo_url = ?");      values.push(logo_url); }
+
+  if (!fields.length) return res.status(400).json({ message: "Nothing to update" });
+
+  values.push(university_id);
+  db.query(
+    `UPDATE universities SET ${fields.join(", ")} WHERE id = ?`,
+    values,
+    (err, result) => {
+      if (err)                      return res.status(500).json({ message: "Server error" });
+      if (result.affectedRows === 0) return res.status(404).json({ message: "University not found" });
+      res.json({ message: "University settings updated" });
     }
   );
 };

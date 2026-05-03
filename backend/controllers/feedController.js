@@ -115,7 +115,6 @@ exports.deletePost = (req, res) => {
     db.query(`SELECT media_url FROM posts WHERE ${where}`, params, (err, rows) => {
       if (err || rows.length === 0) return res.status(403).json({ message: "Not authorized or not found" });
 
-      // Remove media 
       if (rows[0].media_url) {
         const fp = path.join(__dirname, "../", rows[0].media_url);
         if (fs.existsSync(fp)) fs.unlinkSync(fp);
@@ -125,6 +124,72 @@ exports.deletePost = (req, res) => {
         if (err) return res.status(500).json({ message: "Server error" });
         res.json({ message: "Post deleted" });
       });
+    });
+  });
+};
+
+exports.editPost = (req, res) => {
+  const { id } = req.params;
+  const { user_id, content } = req.body;
+
+  if (!user_id)        return res.status(400).json({ message: "user_id required" });
+  if (!content?.trim()) return res.status(400).json({ message: "content required" });
+
+  db.query(
+    "SELECT id, user_id FROM posts WHERE id = ? AND user_id = ?",
+    [id, user_id],
+    (err, rows) => {
+      if (err)            return res.status(500).json({ message: "Server error" });
+      if (rows.length === 0)
+        return res.status(403).json({ message: "Not authorized or post not found" });
+
+      db.query(
+        "UPDATE posts SET content = ? WHERE id = ?",
+        [content.trim(), id],
+        (err) => {
+          if (err) {
+            console.error("[editPost] DB error:", err);
+            return res.status(500).json({ message: "Server error", detail: err.message });
+          }
+          res.json({ message: "Post updated", content: content.trim() });
+        }
+      );
+    }
+  );
+};
+
+exports.searchPosts = (req, res) => {
+  const { user_id, q } = req.query;
+  if (!user_id) return res.status(400).json({ message: "user_id required" });
+  if (!q?.trim()) return res.status(400).json({ message: "q (search query) required" });
+
+  getUserInfo(user_id, (err, user) => {
+    if (err || !user) return res.status(404).json({ message: "User not found" });
+
+    const vis     = visibilityClause(user);
+    const keyword = `%${q.trim()}%`;
+
+    const sql = `
+      SELECT
+        p.*,
+        u.name   AS author_name,
+        u.role   AS author_role,
+        uni.name AS university_name,
+        (SELECT COUNT(*) FROM post_reactions WHERE post_id = p.id) AS reaction_count,
+        (SELECT COUNT(*) FROM post_comments  WHERE post_id = p.id) AS comment_count,
+        (SELECT COUNT(*) FROM post_shares    WHERE post_id = p.id) AS share_count,
+        (SELECT reaction FROM post_reactions WHERE post_id = p.id AND user_id = ?) AS my_reaction
+      FROM posts p
+      JOIN  users        u   ON p.user_id      = u.id
+      LEFT JOIN universities uni ON p.university_id = uni.id
+      WHERE p.content LIKE ? AND ${vis.sql}
+      ORDER BY p.created_at DESC
+      LIMIT 50
+    `;
+
+    db.query(sql, [user_id, keyword, ...vis.params], (err, rows) => {
+      if (err) return res.status(500).json({ message: "Server error", err });
+      res.json(rows);
     });
   });
 };
@@ -142,26 +207,22 @@ exports.reactToPost = (req, res) => {
 
       if (rows.length > 0) {
         if (rows[0].reaction === reaction) {
-          // Toggle off
           db.query("DELETE FROM post_reactions WHERE id = ?", [rows[0].id], (err) => {
             if (err) return res.status(500).json({ message: "Server error" });
             res.json({ action: "removed" });
           });
         } else {
-          // Change reaction
           db.query("UPDATE post_reactions SET reaction = ? WHERE id = ?", [reaction, rows[0].id], (err) => {
             if (err) return res.status(500).json({ message: "Server error" });
             res.json({ action: "updated" });
           });
         }
       } else {
-        // New reaction
         db.query(
           "INSERT INTO post_reactions (post_id, user_id, reaction) VALUES (?, ?, ?)",
           [post_id, user_id, reaction],
           (err) => {
             if (err) return res.status(500).json({ message: "Server error" });
-            // Notify post owner (not self)
             db.query("SELECT user_id FROM posts WHERE id = ?", [post_id], (err, posts) => {
               if (!err && posts.length > 0 && String(posts[0].user_id) !== String(user_id)) {
                 db.query(
@@ -260,8 +321,6 @@ exports.sharePost = (req, res) => {
     [post_id, user_id],
     (err) => {
       if (err) return res.status(500).json({ message: "Server error" });
-
-      // Notify post owner
       db.query("SELECT user_id FROM posts WHERE id = ?", [post_id], (err, posts) => {
         if (!err && posts.length > 0 && String(posts[0].user_id) !== String(user_id)) {
           db.query(

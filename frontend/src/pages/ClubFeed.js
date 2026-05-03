@@ -86,15 +86,6 @@ export default function ClubFeed() {
     } catch {}
   };
 
-  const share = async (postId) => {
-    try {
-      await fetch(`${API}/feed/share`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id, post_id: postId }),
-      });
-      loadFeed();
-    } catch {}
-  };
 
   if (!user) return null;
 
@@ -228,11 +219,7 @@ export default function ClubFeed() {
                       className="action-btn"
                     >💬 Comment</button>
 
-                    {/*Share*/}
-                    <button
-                      onClick={() => share(post.id)}
-                      className="action-btn"
-                    >↗ Share</button>
+                    
                   </div>
 
                   {/*Comments*/}
